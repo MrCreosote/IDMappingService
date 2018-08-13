@@ -30,8 +30,9 @@ except ImportError:
                      'The build may not have completed correctly.')  # pragma: no cover
 
 # TODO LOG all calls & errors
-# TODO ROOT with gitcommit, version, servertime
 # TODO CODE try getting rid of src dir and see what happens
+# TODO TEST test mapping with same namespace in integration tests
+# TODO TEST test wrong header in integration tests
 
 # Set up a blueprint later if necessary
 # Not sure what's worth doing here for documentation. Swagger at some point ideally.
@@ -73,7 +74,6 @@ def _format_error(err: Exception, httpcode: int, errtype: ErrorType=None, errpre
         errjson['apperror'] = errtype.error_type
     return (flask.jsonify({'error': errjson}), httpcode)
     # TODO LOG log error
-    # TODO ERR call id, time
 
 
 def _get_auth(request, required=True) -> Tuple[Optional[AuthsourceID], Optional[Token]]:

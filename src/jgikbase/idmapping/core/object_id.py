@@ -6,7 +6,7 @@ namespace.
 """
 from jgikbase.idmapping.core.arg_check import check_string, not_none, no_Nones_in_iterable
 from jgikbase.idmapping.core.user import User
-from typing import Set
+from typing import Set, Optional
 
 # may want to consider a superclass for simple IDs that does checking & implements hash & eq
 
@@ -41,6 +41,52 @@ class NamespaceID:
         return hash((self.id,))
 
 
+class NamespaceUserAttributes:
+    """
+    User specified data associated with the namespace.
+
+    :ivar org: The organization associated with the namespace, e.g. JGI, KBase, NCBI.
+    :ivar env: The environment in which the data associated with the namespace resides, e.g.
+        CI, production, staging, etc.
+    :ivar db: The database in which the data associated with the namespace resides.
+    :ivar desc: A free-text description of the namespace and its associated data.
+    """
+
+    def __init__(self, org: str=None, env: str=None, db: str=None, desc: str=None) -> None:
+        """
+        Create the data.
+
+        For all arguments, whitespace-only strings are treated as None.
+
+        :param org: The organization associated with the namespace, e.g. JGI, KBase, NCBI.
+        :param env: The environment in which the data associated with the namespace resides, e.g.
+            CI, production, staging, etc.
+        :param db: The database in which the data associated with the namespace resides.
+        :param desc: A free-text description of the namespace and its associated data.
+        """
+        self.org = self._whitespace_to_None(org, 'org', 100)
+        self.env = self._whitespace_to_None(env, 'env', 100)
+        self.db = self._whitespace_to_None(db, 'db', 100)
+        self.desc = self._whitespace_to_None(desc, 'desc', 10000)
+
+    def _whitespace_to_None(self, s: Optional[str], name: str, max_len: int) -> Optional[str]:
+        if not s or not s.strip():
+            return None
+        check_string(s, name, max_len=max_len)
+        return s.strip()
+
+    def __eq__(self, other):
+        if type(self) is type(other):
+            return (self.org == other.org and
+                    self.db == other.db and
+                    self.env == other.env and
+                    self.desc == other.desc)
+        return False
+
+    def __hash__(self):
+        return hash((self.org, self.env, self.db, self.desc))
+
+
 class Namespace:
     """
     A namespace.
@@ -48,6 +94,7 @@ class Namespace:
     :ivar namespace_id: the namespace's ID.
     :ivar is_publicly_mappable: whether the namespace is publicly mappable or not.
     :ivar authed_users: users that are authorized to administer the namespace.
+    :ivar attribs: user defined namespace attributes.
     """
 
     # TODO NS add user def/updatable attributes: free text desc, source (kbase/jgi), env (ci), db.
@@ -56,7 +103,8 @@ class Namespace:
             self,
             namespace_id: NamespaceID,
             is_publicly_mappable: bool,
-            authed_users: Set[User]=None
+            authed_users: Set[User]=None,
+            attribs: NamespaceUserAttributes=None,
             ) -> None:
         '''
         Create a namespace.
@@ -64,29 +112,33 @@ class Namespace:
         :param namespace_id: the ID of the namespace.
         :param is_publicly_mappable: whether the namespace is publicly mappable or not.
         :param authed_users: users that are authorized to administer the namespace.
+        :param attribs: user defined namespace attributes.
         :raises TypeError: if namespace_id is None or authed_users contains None
         '''
         not_none(namespace_id, 'namespace_id')
         self.namespace_id = namespace_id
         self.is_publicly_mappable = is_publicly_mappable
         self.authed_users = frozenset(authed_users) if authed_users else frozenset()
+        self.attribs = attribs if attribs else NamespaceUserAttributes()
         no_Nones_in_iterable(self.authed_users, 'authed_users')
 
     def without_users(self):
         '''
         Returns a copy of this namespace with an empty authed_users field.
         '''
-        return Namespace(self.namespace_id, self.is_publicly_mappable, None)
+        return Namespace(self.namespace_id, self.is_publicly_mappable, None, self.attribs)
 
     def __eq__(self, other):
         if type(self) is type(other):
             return (self.namespace_id == other.namespace_id and
                     self.is_publicly_mappable == other.is_publicly_mappable and
+                    self.attribs == self.attribs and
                     self.authed_users == other.authed_users)
         return False
 
     def __hash__(self):
-        return hash((self.namespace_id, self.is_publicly_mappable, self.authed_users))
+        return hash((self.namespace_id, self.is_publicly_mappable, self.attribs,
+                     self.authed_users))
 
 
 class ObjectID:
